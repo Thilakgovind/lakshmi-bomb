@@ -49,20 +49,54 @@ const steps = [
   {time:4.6, name:"Reflection", title:"Read the circle", explain:"VSWR tells us how strong the reflection is. That strength sets the radius of the circle Medusa draws around the chart.", observe:"Moving along a lossless line rotates the point around this circle, but does not change its radius.", equation:m => `|Γ| = (VSWR − 1)/(VSWR + 1) = ${num(m.rho)}`},
   {time:6.8, name:"Bell · Locate load", title:"Use the minimum to locate the load", explain:"At a voltage minimum, the reflected wave is 180° out of phase with the incident wave. Moving toward the generator rotates Γ clockwise, so we rotate back by 720° per wavelength to find the load.", observe:"The voltage minimum sits on the negative real axis. On the default problem, the load lies below the horizontal axis, consistent with capacitive reactance.", equation:m => m.rho ? `∠Γ at load = 180° + 720° × ${m.minimum} ≡ ${num(mod(m.phase * 180 / Math.PI + 180,360)-180,2)}°` : "Γ = 0, so there is no unique minimum or reflection phase."},
   {time:8.4, name:"Admittance", title:"Choose the useful grid", explain:"Medusa flips from impedance to admittance because a parallel stub adds directly to admittance. The real part is conductance g; the imaginary part is susceptance b.", observe:"Use the admittance grid when you are adding a shunt stub.", equation:m => `z = ${complex(m.load.z)} · y = 1/z = ${complex(m.load.y)}`},
-  {time:11.2, name:"Arm · Choose position", title:"Move until conductance equals 1", explain:"The stub can change susceptance b, the imaginary part of admittance. Find places where normalized conductance g, the real part, already equals 1.", observe:"Move the probe clockwise along the circle, or select A or B below to jump to a crossing. The coral grid circle is g = 1.", equation:m => m.solutions.length ? m.solutions.map((s,i) => `${"AB"[i]}: d = ${num(s.d)}λ, y = ${complex(s.y)}`).join("  ·  ") : "The line is already matched everywhere."},
-  {time:14, name:"Stub", title:"Cancel the leftover b", explain:"At the g = 1 crossing, Medusa adds a short or open stub in parallel. The stub supplies equal and opposite susceptance, so the point moves straight to the centre.", observe:"The junction does not move when you change the stub termination; only the required stub length changes.", equation:(m,s,term) => s ? `b(stub) = −b(line) = ${num(s.b)} · ℓ = ${num(s[term])}λ` : "No stub is required."},
+  {time:11.2, name:"Arm · Choose position", title:"Move until conductance equals 1", explain:"The stub can change susceptance b, the imaginary part of admittance. Find places where normalized conductance g, the real part, already equals 1.", observe:"Move the probe clockwise along the VSWR circle, or select A or B below. The dashed circle marks g = 1.", equation:m => m.solutions.length ? m.solutions.map((s,i) => `${"AB"[i]}: d = ${num(s.d)}λ, y = ${complex(s.y)}`).join("  ·  ") : "The line is already matched everywhere."},
+  {time:14, name:"Stub", title:"Cancel the remaining susceptance", explain:"At the g = 1 crossing, add a parallel stub with equal and opposite susceptance. The marker follows the g = 1 curve toward the centre.", observe:"Changing the termination changes the stub length. The junction stays in the same place.", equation:(m,s,term) => s ? `b(stub) = −b(line) = ${num(s.b)} · ℓ = ${num(s[term])}λ` : "No stub is required."},
   {time:17.5, name:"Teardown · Compare", title:"Compare the two designs", explain:"A full rotation along half a wavelength crosses g = 1 twice. Either crossing works if you use its own stub length.", observe:"Select both options in turn to see how the junction location and required stub length change.", equation:(m,s,term) => s ? `Selected junction: ${num(s.d)}λ · selected stub: ${num(s[term])}λ (${num(s[term]*360,2)}°)` : "The reflection coefficient is zero, so there are no distinct crossings."},
   {time:21, name:"Reassembly · Verify", title:"Verify the match", explain:"Add the two admittances at the junction. When the imaginary parts cancel and the real part is 1, the source side sees Z₀ and the ideal VSWR is 1.", observe:"The center marks the matched condition on the generator side of the junction. Between the junction and the load, the original standing wave remains.", equation:(m,s,term) => s ? `y(total) = ${complex(verify(s,term).y)} · |Γ| = ${num(verify(s,term).rho)} · VSWR = ${num(verify(s,term).vswr)}` : "y(total) = 1 + j0 · |Γ| = 0 · VSWR = 1"}
 ];
 
+const stepStarts = [0, 3.3, 5.7, 7.5, 9.9, 12.7, 15.8, 19.3];
+const stepNames = ["Measurements", "VSWR circle", "Locate load", "Admittance", "Find junction", "Size stub", "Compare", "Verify match"];
+const chartBasics = ["Smith chart basics · Alan Wolke", "https://www.youtube.com/watch?v=TsXd6GktlYQ"];
+const reflectionVideo = ["VSWR and reflection · Alan Wolke", "https://www.youtube.com/watch?v=ImNRca5ecF0"];
+const stubVideo = ["Worked shunt-stub example · Ansys", "https://innovationspace.ansys.com/courses/courses/impedance-matching/lessons/impedance-matching-using-stubs-part-2-lesson-2/"];
+const stepVideos = [chartBasics, reflectionVideo, reflectionVideo, chartBasics, stubVideo, stubVideo, stubVideo, stubVideo];
 const tour = $("tour");
 const tourOrigin = location.protocol === "file:" ? "*" : location.origin;
 const duration = 25;
-let model, step = 0, selected = 0, playhead = 2.6, playing = false, followTour = true;
-let animationFrame, lastTick;
-function setPlaying(value) {
+let model, step = 0, selected = 0, playhead = 0, playing = false, followTour = false;
+let animationFrame, lastTick, stopAt = duration;
+let liveFrame, liveTime, wavePhase = 0;
+function setLive(running) {
+  if (liveFrame) cancelAnimationFrame(liveFrame);
+  liveFrame = null;
+  liveTime = null;
+  $("runLive").setAttribute("aria-pressed", running);
+  $("runLive").textContent = running ? "Pause live probe" : "Run live probe";
+  if (running) {
+    setPlaying(false);
+    followTour = false;
+    liveFrame = requestAnimationFrame(advanceProbe);
+  }
+}
+
+function advanceProbe(now) {
+  if (liveTime === null) liveTime = now;
+  if (now - liveTime >= 36) {
+    const dt = Math.min(.1, (now - liveTime) / 1000);
+    liveTime = now;
+    $("probe").value = mod(Number($("probe").value) + dt * .085, .5);
+    wavePhase = mod(wavePhase + dt * tau, tau);
+    renderChart();
+  }
+  liveFrame = requestAnimationFrame(advanceProbe);
+}
+
+function setPlaying(value, stop = stopAt) {
+  if (value) setLive(false);
   playing = value;
-  $("tourToggle").textContent = playing ? "Pause explanation" : "Play explanation";
+  stopAt = stop;
+  $("tourToggle").textContent = playing ? "Pause walkthrough" : "Play full walkthrough";
   if (animationFrame) cancelAnimationFrame(animationFrame);
   animationFrame = null;
   lastTick = null;
@@ -72,10 +106,10 @@ function setPlaying(value) {
 function advanceLesson(now) {
   if (lastTick === null) lastTick = now;
   if (now - lastTick >= 35) {
-    const next = Math.min(duration, playhead + Math.min(.1, (now - lastTick) / 1000));
+    const next = Math.min(stopAt, playhead + Math.min(.1, (now - lastTick) / 1000) * .64);
     lastTick = now;
     applyTourTime(next);
-    if (next === duration) {
+    if (next === stopAt) {
       setPlaying(false);
       return;
     }
@@ -87,11 +121,14 @@ function applyTourTime(time) {
   playhead = time;
   $("tourTime").value = time;
   $("tourClock").textContent = `${time.toFixed(1)} / ${duration} s`;
-  const next = time >= 19.3 ? 7 : time >= 15.8 ? 6 : time >= 12.7 ? 5 : time >= 9.9 ? 4 : time >= 7.5 ? 3 : time >= 5.7 ? 2 : time >= 3.3 ? 1 : 0;
+  const next = stepStarts.findLastIndex(start => time >= start);
   const changed = step !== next;
   step = next;
   updateTourProbe();
-  if (changed) renderLesson();
+  if (changed) {
+    $("view").value = step < 3 ? "z" : "y";
+    renderLesson();
+  }
   renderChart();
   tour.contentWindow.postMessage({type:"medusa-seek", time}, tourOrigin);
 }
@@ -105,33 +142,32 @@ function updateTourProbe() {
   const target = model.solutions[selected]?.d ?? 0;
   let distance = 0;
   if (step === 2) distance = model.minimum * progress(5.7, 7.2);
-  if (step === 3) distance = model.minimum;
   if (step === 4) distance = target * progress(9.9, 12.45);
   if (step >= 5) distance = target;
   $("probe").value = distance;
 }
 
 function seekStep(index) {
+  setLive(false);
   setPlaying(false);
   followTour = true;
-  applyTourTime(steps[index].time);
+  $("view").value = index < 3 ? "z" : "y";
+  applyTourTime((stepStarts[index + 1] ?? duration) - .01);
 }
-steps.forEach((item,index) => {
+stepNames.forEach((name,index) => {
   const button = document.createElement("button");
-  button.textContent = (index+1) + ". " + item.name;
+  button.textContent = (index+1) + ". " + name;
   button.onclick = () => seekStep(index);
   $("steps").append(button);
 });
-const tourFallback = setTimeout(() => {
-  $("tourState").textContent = "The 3D room could not start. Use the flat chart below.";
-  $("flatChart").open = true;
-},10000);
 let roomReady = false;
+setTimeout(() => {
+  if (!roomReady) $("tourState").textContent = "The 3D room could not start. The live chart is available.";
+}, 10000);
 addEventListener("message", event => {
   if (event.source !== tour.contentWindow || (tourOrigin !== "*" && event.origin !== tourOrigin)) return;
   const time = event.data?.time;
   if (event.data?.type !== "medusa-time" || !Number.isFinite(time)) return;
-  clearTimeout(tourFallback);
   $("tourState").hidden = true;
   if (!roomReady) {
     roomReady = true;
@@ -141,13 +177,27 @@ addEventListener("message", event => {
 $("tourToggle").addEventListener("click", () => {
   followTour = true;
   if (!playing && playhead === duration) applyTourTime(0);
-  setPlaying(!playing);
+  setPlaying(!playing, duration);
+});
+$("previousStep").addEventListener("click", () => seekStep(Math.max(0, step - 1)));
+$("nextStep").addEventListener("click", () => seekStep(Math.min(steps.length - 1, step + 1)));
+$("replayStep").addEventListener("click", () => {
+  followTour = true;
+  const start = stepStarts[step];
+  const end = (stepStarts[step + 1] ?? duration) - .01;
+  $("view").value = step < 3 ? "z" : "y";
+  applyTourTime(start);
+  setPlaying(true, end);
 });
 $("tourTime").addEventListener("input", event => {
+  setLive(false);
   setPlaying(false);
   followTour = true;
   const time = Number(event.target.value);
   applyTourTime(time);
+});
+$("runLive").addEventListener("click", () => {
+  if (model || liveFrame) setLive(!liveFrame);
 });
 $("roam").addEventListener("change", event => {
   tour.contentWindow.postMessage({type:"medusa-roam", enabled:event.target.checked}, tourOrigin);
@@ -161,6 +211,67 @@ function renderLesson() {
   $("explanation").textContent = item.explain;
   $("observe").textContent = item.observe;
   $("equation").textContent = model ? item.equation(model,model.solutions[selected],$("termination").value) : "Enter valid measurements to calculate this step.";
+  $("previousStep").disabled = step === 0;
+  $("nextStep").disabled = step === steps.length - 1;
+  const [title, url] = stepVideos[step];
+  $("stepVideo").textContent = "Watch video: " + title;
+  $("stepVideo").href = url;
+}
+
+const chartRadius = 165;
+const chartValues = [.1, .2, .3, .5, .7, 1, 1.5, 2, 3, 5, 10];
+const labeledValues = [.2, .5, 1, 2, 5];
+const chartScales = Array.from({length:50}, (_, index) => {
+  const angle = Math.PI - tau * index / 50;
+  const major = index % 5 === 0;
+  const x = Math.cos(angle), y = -Math.sin(angle);
+  return `<line x1="${x*173}" y1="${y*173}" x2="${x*(major ? 182 : 177)}" y2="${y*(major ? 182 : 177)}" stroke="#5C4E4E"/>` +
+    (major ? `<text class="scale-label" x="${x*194}" y="${y*194}" text-anchor="middle" dominant-baseline="central" fill="#5C4E4E">${num(index/100,2)}</text>` : "");
+}).join("");
+
+function renderWave(distance) {
+  const wave = $("wave");
+  if (!model) {
+    wave.replaceChildren();
+    return;
+  }
+  const curves = {upper:[], lower:[], voltage:[]};
+  const xAt = d => 42 + (.5 - d) * 1000;
+  for (let index = 0; index <= 120; index++) {
+    const d = .5 * (1 - index / 120);
+    const gamma = gammaAt(model,d);
+    const envelope = Math.hypot(1 + gamma.re, gamma.im);
+    const voltage = Math.cos(wavePhase + tau*d) + model.rho * Math.cos(wavePhase - tau*d + model.phase);
+    const point = (value) => `${index ? "L" : "M"}${num(xAt(d),2)},${num(68 - 29 * value,2)}`;
+    curves.upper.push(point(envelope));
+    curves.lower.push(point(-envelope));
+    curves.voltage.push(point(voltage));
+  }
+  const minX = xAt(model.minimum);
+  const probeX = xAt(distance);
+  wave.innerHTML = `<path d="M42 10V126H542 M42 68H542" fill="none" stroke="#988686"/>
+    <path d="${curves.upper.join("")} ${curves.lower.join("")}" fill="none" stroke="#5C4E4E" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <path d="${curves.voltage.join("")}" fill="none" stroke="#000000" stroke-width="2"/>
+    ${model.rho ? `<line x1="${minX}" x2="${minX}" y1="14" y2="126" stroke="#988686" stroke-dasharray="2 4"/><text x="${Math.min(535, minX + 5)}" y="16" text-anchor="${minX > 510 ? "end" : "start"}">Vmin</text>` : ""}
+    <line x1="${probeX}" x2="${probeX}" y1="20" y2="126" stroke="#5C4E4E" stroke-width="2"/><text x="42" y="146">0.50λ from load</text><text x="542" y="146" text-anchor="end">Load · 0λ</text>`;
+}
+
+function renderReadings(effective, impedance, admittance, distance) {
+  const rho = Math.hypot(effective.re,effective.im);
+  const loadOhms = {re:model.load.z.re * model.z0, im:model.load.z.im * model.z0};
+  const pairs = [
+    ["Line VSWR", num(model.vswr, 3)],
+    ["Load impedance Zₗ", complex(loadOhms, 2) + " Ω"],
+    ["Probe distance", num(distance, 4) + "λ"],
+    ["Reflection at marker", num(rho, 3) + (rho > 1e-9 ? " ∠ " + num(Math.atan2(effective.im, effective.re)*180/Math.PI,1) + "°" : "")],
+    ["Normalized impedance z", complex(impedance)],
+    ["Normalized admittance y", complex(admittance)],
+    ["VSWR at marker", num((1 + rho) / (1 - rho), 3)],
+    ["Return loss at marker", rho < 1e-9 ? "∞ dB" : num(-20 * Math.log10(rho), 2) + " dB"],
+    ["Reflected power at marker", num(100 * rho**2, 1) + "%"],
+    ["Voltage min / max", num(1 - model.rho, 3) + " / " + num(1 + model.rho, 3)]
+  ];
+  $("liveReadings").innerHTML = pairs.map(([label,value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
 }
 
 function renderChart() {
@@ -170,11 +281,13 @@ function renderChart() {
   if (!model) {
     lineProbe.hidden = junction.hidden = true;
     svg.replaceChildren();
+    $("liveReadings").replaceChildren();
+    renderWave(0);
     tour.contentWindow.postMessage({type:"medusa-chart", chart:null}, tourOrigin);
     $("probeReadout").textContent = "Enter valid measurements to plot the load.";
     return;
   }
-  const R = 165;
+  const R = chartRadius;
   const view = $("view").value;
   const sign = view === "z" ? 1 : -1;
   const circle = (x,y,r,stroke,width=1) => `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="${stroke}" stroke-width="${width}"/>`;
@@ -182,14 +295,20 @@ function renderChart() {
     const x = point.re * R, y = -point.im * R;
     return `<circle cx="${x}" cy="${y}" r="5" fill="${color}"><title>${label}</title></circle><text x="${x+7}" y="${y-offset}" fill="${color}">${label}</text>`;
   };
-  const grid = [0,.2,.5,1,2,5].map(v => circle(sign*R*v/(1+v),0,R/(1+v),"#b9d9d6")).join("") +
-    [-5,-2,-1,-.5,-.2,.2,.5,1,2,5].map(v => circle(sign*R,-sign*R/v,R/Math.abs(v),"#b9d9d6")).join("");
+  const grid = chartValues.map(v => circle(sign*R*v/(1+v),0,R/(1+v),"#D1D0D0")).join("") +
+    chartValues.flatMap(v => [-v,v]).map(v => circle(sign*R,-sign*R/v,R/Math.abs(v),"#D1D0D0")).join("");
+  const realLabels = labeledValues.map(v =>
+    `<text class="grid-label" x="${sign*R*(v-1)/(v+1)}" y="12" text-anchor="middle" fill="#5C4E4E">${v}</text>`
+  ).join("");
+  const imaginaryLabels = labeledValues.flatMap(v => [-v,v]).map(v =>
+    `<text class="grid-label" x="${sign*151*(v*v-1)/(v*v+1)}" y="${sign*-151*2*v/(v*v+1)}" text-anchor="middle" dominant-baseline="central" fill="#5C4E4E">${v > 0 ? "+" : "−"}${Math.abs(v)}</text>`
+  ).join("");
   const solution = model.solutions[selected];
   const matching = followTour && step >= 5 && Boolean(solution);
   const d = matching ? solution.d : Number($("probe").value);
   lineProbe.hidden = false;
   lineProbe.style.left = `${100 - d * 200}%`;
-  junction.hidden = !solution;
+  junction.hidden = !solution || (followTour && step < 4);
   if (solution) junction.style.left = `${100 - solution.d * 200}%`;
   const probe = lineAt(model,d);
   const fraction = step === 5 ? progress(12.7, 15.6) : 1;
@@ -200,6 +319,15 @@ function renderChart() {
     return {re:(1 - re ** 2 - im ** 2) / den, im:-2 * im / den};
   };
   const effective = matching ? toGamma(y) : probe.gamma;
+  const impedanceDenominator = (1 - effective.re)**2 + effective.im**2;
+  const z = matching ? {
+    re:(1 - effective.re**2 - effective.im**2) / impedanceDenominator,
+    im:2 * effective.im / impedanceDenominator
+  } : probe.z;
+  const showCircle = !followTour || step >= 1;
+  const showMinimum = !followTour || step >= 2;
+  const showCrossings = !followTour || step >= 4;
+  const crossings = showCrossings ? model.solutions.map(item => gammaAt(model,item.d)) : [];
   const cancellation = matching ? Array.from({length:33},(_,i) => {
     const point = toGamma({re:y.re, im:solution.y.im + stub*i/32});
     return `${i ? "L" : "M"}${point.re*R},${-point.im*R}`;
@@ -211,25 +339,29 @@ function renderChart() {
   tour.contentWindow.postMessage({
     type:"medusa-chart",
     chart:{
-      view, rho:model.rho, load:model.load.gamma,
-      crossings:model.solutions.map(item => gammaAt(model,item.d)),
+      view, rho:model.rho, load:model.load.gamma, showCircle, showMinimum, crossings,
       trace, cancellation, effective
     }
   }, tourOrigin);
   svg.innerHTML = `<defs><clipPath id="disk"><circle r="${R}"/></clipPath></defs>
     <g transform="translate(200 200)">
-      <g clip-path="url(#disk)">${grid}<line x1="-165" x2="165" y1="0" y2="0" stroke="#99bcba"/></g>
-      ${circle(0,0,R,"#537f7b")}
-      ${view === "y" ? circle(-R/2,0,R/2,"#dd654e",1.6) : ""}
-      ${circle(0,0,model.rho*R,"#087a6d",1.6)}
-      <path d="${trace}" stroke="#284f55" stroke-width="3" fill="none" opacity=".65"/>
-      ${mark({re:0,im:0},"#31743d","Match",-18)}
-      ${model.rho ? mark({re:-model.rho,im:0},"#556a78","Vmin",-18) + mark(model.load.gamma,"#bc3d25","Load") : ""}
-      ${model.solutions.map((item,index) => mark(gammaAt(model,item.d),"#087a6d","AB"[index])).join("")}
-      <path d="${cancellation}" stroke="#357837" stroke-width="3" fill="none" stroke-dasharray="5 3"/>
-      <circle cx="${effective.re*R}" cy="${-effective.im*R}" r="9" fill="none" stroke="#143b44" stroke-width="2"/>
+      <g clip-path="url(#disk)">${grid}<line x1="-165" x2="165" y1="0" y2="0" stroke="#988686"/></g>
+      ${circle(0,0,R,"#5C4E4E")} ${chartScales}
+      ${view === "y" ? `<circle cx="${-R/2}" cy="0" r="${R/2}" fill="none" stroke="#5C4E4E" stroke-width="2" stroke-dasharray="7 4"/>` : ""}
+      ${showCircle && model.rho ? `<circle cx="0" cy="0" r="${model.rho*R}" fill="none" stroke="#988686" stroke-width="2.5" stroke-dasharray="2 4"/>` : ""}
+      ${realLabels}${imaginaryLabels}
+      <path d="${trace}" stroke="#5C4E4E" stroke-width="2.5" fill="none"/>
+      ${mark({re:0,im:0},"#5C4E4E","Match",-18)}
+      ${model.rho && showMinimum ? mark({re:-model.rho,im:0},"#5C4E4E","Vmin",-18) : ""}
+      ${model.rho ? mark(model.load.gamma,"#000000","Load") : ""}
+      ${crossings.map((point,index) => mark(point,"#5C4E4E","AB"[index])).join("")}
+      <path d="${cancellation}" stroke="#000000" stroke-width="4" fill="none"/>
+      <circle cx="${effective.re*R}" cy="${-effective.im*R}" r="7.5" fill="#D1D0D0" stroke="#000000" stroke-width="2"/>
+      <circle cx="${model.load.gamma.re*R}" cy="${-model.load.gamma.im*R}" r="15" fill="transparent" data-load-handle="true"><title>Drag to change load</title></circle>
     </g>`;
   $("probeReadout").textContent = matching ? `Junction at ${num(solution.d)}λ · total y = ${complex(y)}` : `d = ${num(d)}λ · z = ${complex(probe.z)} · y = ${complex(probe.y)}`;
+  renderReadings(effective,z,y,d);
+  renderWave(d);
 }
 
 function renderResults() {
@@ -259,6 +391,8 @@ function update() {
   const [z0,vswr,minimum] = fields.map(field => field.valueAsNumber);
   const invalid = fields.some(field => !field.validity.valid || !Number.isFinite(field.valueAsNumber));
   model = invalid ? null : solve(z0,vswr,minimum);
+  if (invalid) setLive(false);
+  $("runLive").disabled = invalid;
   $("error").hidden = !invalid;
   $("error").textContent = invalid ? "Use Z₀ between 0.01 and 1,000,000 Ω, VSWR between 1 and 1,000, and a minimum distance from 0 to 0.499999λ." : "";
   $("minimum").disabled = !invalid && vswr === 1;
@@ -272,11 +406,41 @@ $("inputs").addEventListener("input", update);
 $("inputs").addEventListener("reset", () => setTimeout(() => { selected = 0; seekStep(0); update(); }, 0));
 $("inputs").addEventListener("submit", event => event.preventDefault());
 $("probe").addEventListener("input",() => {
+  setLive(false);
   followTour = false;
   setPlaying(false);
   renderChart();
 });
 $("view").addEventListener("change",renderChart);
+
+const smith = $("smith");
+let loadPointer = null;
+smith.addEventListener("pointerdown", event => {
+  if (!model || loadPointer !== null || event.button !== 0 || !event.target.closest("[data-load-handle]")) return;
+  loadPointer = event.pointerId;
+  smith.setPointerCapture(loadPointer);
+  smith.classList.add("is-dragging");
+  setPlaying(false);
+  followTour = false;
+  event.preventDefault();
+});
+smith.addEventListener("pointermove", event => {
+  if (event.pointerId !== loadPointer) return;
+  const matrix = smith.getScreenCTM();
+  if (!matrix) return;
+  const local = new DOMPoint(event.clientX,event.clientY).matrixTransform(matrix.inverse());
+  const re = (local.x - 200) / chartRadius;
+  const im = (200 - local.y) / chartRadius;
+  const rho = Math.min(999 / 1001, Math.hypot(re,im));
+  const phase = Math.atan2(im,re);
+  $("vswr").value = num((1 + rho) / (1 - rho),4);
+  $("minimum").value = num(Math.min(.499999, mod((phase - Math.PI) / (2 * tau),.5)),6);
+  update();
+});
+smith.addEventListener("lostpointercapture", () => {
+  loadPointer = null;
+  smith.classList.remove("is-dragging");
+});
 
 window.getSmithTutorContext = () => ({
   currentStep: steps[step].title,
@@ -296,9 +460,7 @@ $("options").addEventListener("click",event => {
   const button = event.target.closest("[data-option]");
   if (!button || !model) return;
   selected = Number(button.dataset.option);
-  followTour = false;
-  setPlaying(false);
-  $("probe").value = model.solutions[selected].d;
+  seekStep(4);
   renderResults();
   $("options").querySelector(`[data-option="${selected}"]`).focus();
   renderLesson();

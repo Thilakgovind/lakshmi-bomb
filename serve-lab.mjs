@@ -27,7 +27,9 @@ const mimeTypes = {
   "smithMatchLabData.js": "text/javascript",
   "tutor.js": "text/javascript",
   "tutor.css": "text/css",
-  "Sharpie-Variable.woff2": "font/woff2"
+  "Sharpie-Variable.woff2": "font/woff2",
+  "Array-Regular.woff2": "font/woff2",
+  "Array-Semibold.woff2": "font/woff2"
 };
 
 function json(response, status, data) {

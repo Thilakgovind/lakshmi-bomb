@@ -472,22 +472,22 @@ floor.position.y = -5.2; scene.add(floor);
 function createLessonRoom() {
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(90, 90),
-    new THREE.MeshStandardMaterial({ color: 0xcbbd93, roughness: .9 })
+    new THREE.MeshStandardMaterial({ color: 0x988686, roughness: .9 })
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -5.35;
   ground.receiveShadow = true;
-  const tiles = new THREE.GridHelper(32, 32, 0x80775c, 0xb4a477);
+  const tiles = new THREE.GridHelper(32, 32, 0x5c4e4e, 0x988686);
   tiles.position.y = ground.position.y + .012;
-  scene.background = new THREE.Color(0xfae8b4);
-  scene.fog = new THREE.FogExp2(0xfae8b4, .027);
+  scene.background = new THREE.Color(0xd1d0d0);
+  scene.fog = new THREE.FogExp2(0xd1d0d0, .027);
   scene.add(ground, tiles);
 
   const board = new THREE.Group();
   const size = 6.8;
   const frame = new THREE.Mesh(
     new THREE.BoxGeometry(size + .28, size + .28, .28),
-    new THREE.MeshStandardMaterial({color:0x574a24, roughness:.48})
+    new THREE.MeshStandardMaterial({color:0x5c4e4e, roughness:.48})
   );
   board.add(frame);
   const chartCanvas = document.createElement('canvas');
@@ -503,23 +503,23 @@ function createLessonRoom() {
   face.position.z = .145;
   const pointer = new THREE.Mesh(
     new THREE.SphereGeometry(.13, 20, 14),
-    new THREE.MeshStandardMaterial({color:0xff663d, emissive:0x6e2410, roughness:.32})
+    new THREE.MeshStandardMaterial({color:0x111111, roughness:.32})
   );
   pointer.visible = false;
   board.add(face, pointer);
   const stand = new THREE.Mesh(
     new THREE.BoxGeometry(.34, 1, .42),
-    new THREE.MeshStandardMaterial({color:0x80775c, roughness:.65})
+    new THREE.MeshStandardMaterial({color:0x5c4e4e, roughness:.65})
   );
   scene.add(board, stand);
 
   function drawChart(chart) {
     const r = 165;
     ctx.setTransform(2.56, 0, 0, 2.56, 512, 512);
-    ctx.fillStyle = '#fff7df';
+    ctx.fillStyle = '#fdfcfc';
     ctx.fillRect(-200, -200, 400, 400);
     ctx.font = '700 14px system-ui';
-    ctx.fillStyle = '#574a24';
+    ctx.fillStyle = '#5c4e4e';
     ctx.fillText('SMITH CHART', -180, -174);
     pointer.visible = Boolean(chart);
     if (!chart) {
@@ -554,22 +554,26 @@ function createLessonRoom() {
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.clip();
-    for (const v of [.2, .5, 1, 2, 5]) circle(sign * r * v / (1 + v), 0, r / (1 + v), '#cbbd93');
-    for (const v of [-5, -2, -1, -.5, -.2, .2, .5, 1, 2, 5]) circle(sign * r, -sign * r / v, r / Math.abs(v), '#cbbd93');
-    ctx.fillStyle = '#80775c';
+    const values = [.1, .2, .3, .5, .7, 1, 1.5, 2, 3, 5, 10];
+    for (const v of values) circle(sign * r * v / (1 + v), 0, r / (1 + v), '#d1d0d0');
+    for (const v of values.flatMap(value => [-value, value])) circle(sign * r, -sign * r / v, r / Math.abs(v), '#d1d0d0');
+    ctx.fillStyle = '#988686';
     ctx.fillRect(-r, -.5, r * 2, 1);
-    if (chart.view === 'y') circle(-r / 2, 0, r / 2, '#d8745e', 1.8);
+    ctx.setLineDash([7, 4]);
+    if (chart.view === 'y') circle(-r / 2, 0, r / 2, '#5c4e4e', 2);
     ctx.restore();
-    circle(0, 0, r, '#574a24', 1.7);
+    circle(0, 0, r, '#5c4e4e', 1.7);
     if (chart.rho) {
-      circle(0, 0, chart.rho * r, '#188b7c', 1.5);
-      path(chart.trace, '#284f55');
-      mark(chart.load, 'Load', '#ac3923');
-      mark({re:-chart.rho, im:0}, 'Vmin', '#496471');
+      ctx.setLineDash([2, 4]);
+      if (chart.showCircle) circle(0, 0, chart.rho * r, '#988686', 2.5);
+      ctx.setLineDash([]);
+      path(chart.trace, '#5c4e4e');
+      mark(chart.load, 'Load', '#000000');
+      if (chart.showMinimum) mark({re:-chart.rho, im:0}, 'Vmin', '#5c4e4e');
     }
-    chart.crossings.forEach((point, index) => mark(point, 'AB'[index], '#08766a'));
-    path(chart.cancellation, '#357837');
-    mark({re:0, im:0}, 'Match', '#31743d');
+    chart.crossings.forEach((point, index) => mark(point, 'AB'[index], '#5c4e4e'));
+    path(chart.cancellation, '#000000');
+    mark({re:0, im:0}, 'Match', '#5c4e4e');
     pointer.position.set(chart.effective.re * r * size / 400, chart.effective.im * r * size / 400, .26);
     texture.needsUpdate = true;
   }
@@ -704,7 +708,7 @@ function apply(t, wall) {
   if (room) {
     const stacked = camera.aspect < 1.12;
     jf.position.x = stacked ? 0 : -3.75;
-    jf.position.y += stacked ? 2.65 : .4;
+    jf.position.y = clamp(jf.position.y, -.45, .8) + (stacked ? 2.65 : .4);
     if (roaming) {
       jf.position.x += Math.sin(wall * .5) * (stacked ? .85 : 1.15);
       jf.position.y += Math.sin(wall * .73) * .42;

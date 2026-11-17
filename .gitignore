@@ -1,2 +1,5 @@
 node_modules/
+dist/
+.vercel/
 Sharpie-Variable.woff2
+Array-*.woff2

@@ -26,52 +26,81 @@ main{max-width:1530px}.lesson-copy{margin-bottom:15px}.lesson-copy h2{margin-top
 <link rel="stylesheet" href="tutor.css">
 </head>
 <body>
-<header><strong>Medusa JF-4 / Smith Chart Lab</strong><nav aria-label="Page sections"><a href="#workspace">3D lab</a><a href="#tutor">Ask Medusa</a><a href="#resources">Resources &amp; videos</a></nav></header>
+<header><strong>Medusa JF-4 / Smith Chart Lab</strong><nav aria-label="Page sections"><a href="#workspace">Simulation</a><a href="#room">3D room</a><a href="#tutor">Ask Medusa</a><a href="#resources">Resources &amp; videos</a></nav></header>
 <main id="lesson">
   <div class="label">Guided lesson · single shunt-stub matching</div>
   <h1>Match a load with a Smith chart</h1>
   <p>Explore a 50 Ω line with VSWR 3 and a voltage minimum 0.10λ from the load. Follow Medusa to find where to place the matching stub and how long it should be.</p>
-  <div id="workspace">
-    <section class="panel simulation" aria-label="Animated Medusa Smith chart explanation">
-      <div class="simulation-heading room-heading"><div><h2>Medusa’s 3D lab</h2><p>Drag to look around. Play the explanation to follow the marker.</p></div><a href="#tutor">Talk to Medusa ↓</a></div>
-      <div class="tour-wrap">
-        <iframe id="tour" title="Medusa and the animated Smith chart in the same 3D room" src="medusa.html?lesson=1"></iframe>
-        <p class="tour-state" id="tourState">Loading the 3D tour…</p>
+  <section class="panel problem-settings" aria-labelledby="inputsTitle">
+  <h2 id="inputsTitle">Measurements</h2>
+  <form class="inputs" id="inputs">
+    <div class="fields">
+      <label>Line impedance Z₀ (Ω)<input id="z0" type="number" min="0.01" max="1000000" step="any" value="50" required></label>
+      <label>VSWR<input id="vswr" type="number" min="1" max="1000" step="any" value="3" required></label>
+      <label>First minimum (λ)<input id="minimum" type="number" min="0" max="0.499999" step="any" value="0.10" required></label>
+      <label>Stub termination<select id="termination"><option value="short">Short circuit</option><option value="open">Open circuit</option></select></label>
+      <button type="reset">Reset example</button>
+    </div>
+    <p>Distances are measured toward the generator. The stub is lossless and has the same characteristic impedance as the main line.</p>
+    <p id="error" class="error" role="status" hidden></p>
+  </form>
+  </section>
+  <section class="panel worked-lesson" id="workspace" aria-labelledby="simulationTitle">
+    <div class="experiment-heading"><div><h2 id="simulationTitle">Live Smith chart</h2><p>Drag the Load point or change the measurements. Run the probe to see how impedance changes along the line.</p></div><button type="button" id="runLive" aria-pressed="false">Run live probe</button></div>
+    <div class="steps" id="steps" role="group" aria-label="Lesson steps"></div>
+    <div class="worked-grid">
+      <div class="chart-panel">
+        <svg id="smith" class="chart" viewBox="-14 -14 428 428" role="img" aria-label="Interactive Smith chart. Drag the load point, or enter its VSWR and voltage minimum in Measurements."></svg>
+        <p class="legend chart-key"><span><i class="key-vswr"></i>VSWR circle</span><span><i class="key-g"></i>g = 1 (admittance)</span><span><i class="key-stub"></i>Stub cancellation</span></p>
+        <p class="scale-note">Outer scale runs clockwise toward the generator. One turn is 0.50λ.</p>
       </div>
-      <div class="transport">
-        <div class="transport-row"><button id="tourToggle" type="button">Play explanation</button><label class="voice-toggle"><input id="roam" type="checkbox" checked> Let Medusa roam</label><output id="tourClock" for="tourTime">2.6 / 25 s</output></div>
-        <label>Explanation timeline<input id="tourTime" type="range" min="0" max="25" value="2.6" step=".05"></label>
-        <div class="chart-controls">
-          <label>Chart grid<select id="view"><option value="y">Admittance (g, b)</option><option value="z">Impedance (r, x)</option></select></label>
-          <label>Probe position from the load (λ)<input id="probe" type="range" min="0" max=".5" value="0" step=".0001"></label>
+      <div class="experiment-side">
+      <section class="medusa-live" id="room" aria-labelledby="roomTitle">
+        <h3 id="roomTitle">Medusa’s 3D room</h3>
+        <div class="tour-wrap">
+          <iframe id="tour" title="Medusa and the synchronized Smith chart in the same 3D room" src="medusa.html?lesson=1"></iframe>
+          <p class="tour-state" id="tourState">Loading the 3D room…</p>
         </div>
-        <div class="line-map" aria-label="Transmission line from source to load">
-          <span>Generator</span><div class="line-track"><i id="lineJunction" title="Stub junction"></i><i id="lineProbe" title="Probe"></i></div><span>Load</span>
-        </div>
-        <p class="equation" id="probeReadout"></p>
-        <details id="flatChart"><summary>View flat Smith chart</summary>
-          <svg id="smith" class="chart" viewBox="0 0 400 400" role="img" aria-label="Smith chart showing the load, voltage minimum and both shunt-stub locations"></svg>
-          <p class="legend">Coral = load · teal = stub locations · dark = probe · green = matched center</p>
-        </details>
-      </div>
-      <div class="room-lesson">
-  <div class="steps" id="steps" role="group" aria-label="Lesson steps"></div>
-    <section class="panel lesson-copy">
-      <div class="label" id="stepLabel"></div>
-      <h2 id="stepTitle"></h2><p id="explanation"></p>
-      <p id="observe"></p>
-      <details><summary>Formula and definitions</summary>
+        <div class="room-tools"><label class="voice-toggle"><input id="roam" type="checkbox" checked> Roam</label><a href="#tutor">Ask Medusa</a></div>
+      </section>
+      <section class="lesson-copy" aria-labelledby="stepTitle">
+        <div class="label" id="stepLabel"></div>
+        <h3 id="stepTitle"></h3>
+        <p id="explanation"></p>
         <p class="equation" id="equation"></p>
-        <p><strong>Transmission line.</strong> A path that carries waves between a source and a load. Z₀ is the ratio of voltage to current for a wave traveling in one direction.</p>
-        <p><strong>Reflection coefficient Γ.</strong> The reflected voltage divided by the incident voltage at a particular point. Its magnitude measures the size of the reflection.</p>
-        <p><strong>VSWR.</strong> The largest standing-wave voltage divided by the smallest. A value of 1 means the envelope is flat.</p>
-        <p><strong>Admittance.</strong> The inverse of impedance. Its real and imaginary parts are conductance g and susceptance b after normalization.</p>
-        <p><strong>Shunt stub.</strong> A branch of transmission line connected in parallel. A lossless shorted or open stub adds only susceptance, so the connection must be made where g already equals 1.</p>
-      </details>
-    </section>
+        <p id="observe"></p>
+        <div class="step-actions">
+          <button type="button" id="previousStep">Back</button>
+          <button type="button" id="replayStep">Animate this step</button>
+          <button type="button" id="nextStep">Next step</button>
+        </div>
+        <a id="stepVideo" target="_blank" rel="noopener noreferrer"></a>
+      </section>
       </div>
+    </div>
+    <div class="transport chart-transport">
+      <div class="transport-row"><button id="tourToggle" type="button">Play full walkthrough</button><output id="tourClock" for="tourTime">0.0 / 25 s</output></div>
+      <label>Walkthrough timeline<input id="tourTime" type="range" min="0" max="25" value="0" step=".05"></label>
+      <div class="chart-controls">
+        <label>Chart grid<select id="view"><option value="z">Impedance (r, x)</option><option value="y">Admittance (g, b)</option></select></label>
+        <label>Probe distance from load (λ)<input id="probe" type="range" min="0" max=".5" value="0" step=".0001"></label>
+      </div>
+      <dl class="live-readings" id="liveReadings"></dl>
+      <div class="line-map" aria-label="Transmission line from source to load">
+        <span>Generator</span><div class="line-track"><i id="lineJunction" title="Stub junction"></i><i id="lineProbe" title="Probe"></i></div><span>Load</span>
+      </div>
+      <p class="equation" id="probeReadout"></p>
+    </div>
+    <section class="wave-view" aria-labelledby="waveTitle">
+      <h3 id="waveTitle">Standing wave on the unmatched line</h3>
+      <svg id="wave" viewBox="0 0 580 160" role="img" aria-label="Normalized total voltage and standing wave envelope between the generator side and the load"></svg>
+      <p class="legend">Solid · instantaneous voltage <span>Dashed · voltage envelope</span></p>
     </section>
-  </div>
+  </section>
+  <section class="panel results" id="results">
+    <h2>Compare the two matching networks</h2>
+    <div class="options" id="options"></div>
+  </section>
   <section class="panel tutor" id="tutor" aria-labelledby="tutorTitle">
     <div class="tutor-heading">
       <div><h2 id="tutorTitle">Ask Medusa</h2><p>I’m Medusa JF-4, your voice and chat tutor. Ask me about the chart or the matching problem.</p></div>
@@ -95,19 +124,6 @@ main{max-width:1530px}.lesson-copy{margin-bottom:15px}.lesson-copy h2{margin-top
     <audio id="replyAudio" controls hidden aria-label="Medusa’s spoken reply"></audio>
     <p id="voiceNote" class="voice-note" role="status"></p>
   </section>
-  <details class="panel problem-settings"><summary>Change the example measurements</summary>
-  <form class="inputs" id="inputs">
-    <div class="fields">
-      <label>Line impedance Z₀ (Ω)<input id="z0" type="number" min="0.01" max="1000000" step="any" value="50" required></label>
-      <label>VSWR<input id="vswr" type="number" min="1" max="1000" step="any" value="3" required></label>
-      <label>First minimum (λ)<input id="minimum" type="number" min="0" max="0.499999" step="any" value="0.10" required></label>
-      <label>Stub termination<select id="termination"><option value="short">Short circuit</option><option value="open">Open circuit</option></select></label>
-      <button type="reset">Reset example</button>
-    </div>
-    <p>Distances are measured toward the generator. The stub is lossless and has the same characteristic impedance as the main line.</p>
-    <p id="error" class="error" role="status" hidden></p>
-  </form>
-  </details>
   <section class="panel chart-guide">
     <div class="label">Smith chart in plain language</div>
     <h2>How to read the movement</h2>
@@ -116,10 +132,6 @@ main{max-width:1530px}.lesson-copy{margin-bottom:15px}.lesson-copy h2{margin-top
       <p><strong>2. The centre.</strong> The centre is a perfect match: no reflected wave, normalized impedance <strong>z = 1 + j0</strong>.</p>
       <p><strong>3. The crossing.</strong> A shunt stub works where the conductance is already <strong>g = 1</strong>. The stub then cancels the remaining susceptance and moves the point to the centre.</p>
     </div>
-  </section>
-  <section class="panel results" id="results">
-    <h2>Compare the two matching networks</h2>
-    <div class="options" id="options"></div>
   </section>
   <section class="panel resources" id="resources">
     <h2>Resources &amp; videos</h2>

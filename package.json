@@ -4,6 +4,7 @@
   "description": "Medusa JF-4 interactive Smith chart lab",
   "private": true,
   "scripts": {
+    "build": "node build.mjs",
     "start": "node serve-lab.mjs",
     "check": "node --check serve-lab.mjs && node --check lab.js && node --check tutor.js"
   },
