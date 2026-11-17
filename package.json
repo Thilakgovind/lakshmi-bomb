@@ -1,0 +1,24 @@
+{
+  "name": "lakshmi-bomb",
+  "version": "1.0.0",
+  "description": "Medusa JF-4 interactive Smith chart lab",
+  "private": true,
+  "scripts": {
+    "start": "node serve-lab.mjs",
+    "check": "node --check serve-lab.mjs && node --check lab.js && node --check tutor.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Thilakgovind/lakshmi-bomb.git"
+  },
+  "keywords": [],
+  "author": "",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Thilakgovind/lakshmi-bomb/issues"
+  },
+  "homepage": "https://github.com/Thilakgovind/lakshmi-bomb#readme",
+  "dependencies": {
+    "three": "0.170.0"
+  }
+}

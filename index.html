@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Explore the Medusa JF-4 and learn single-stub matching with an interactive Smith chart.">
+<title>Medusa JF-4 · Smith Chart Lab</title>
+<style>
+:root{color-scheme:light;--ink:#0e3a3d;--muted:#476b6d;--line:#bcd8d6;--coral:#ff5a3c;--teal:#087a6d;font-family:Inter,system-ui,sans-serif;color:var(--ink);background:#eef9f8}
+*{box-sizing:border-box}body{margin:0}a{color:#086b60}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #0a8173;outline-offset:3px}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px clamp(14px,4vw,56px);background:white;border-bottom:1px solid var(--line);gap:16px}header strong{font-size:1.2rem}nav{display:flex;gap:16px;flex-wrap:wrap}nav a{font-size:.9rem}
+.tour-wrap{position:relative;background:#e4f4f2}iframe{display:block;width:100%;height:clamp(430px,77svh,900px);border:0}.tour-note{margin:0;padding:10px 5vw;background:#d9eeeb;font-size:.9rem}.tour-state{position:absolute;inset:42% 5% auto;text-align:center;pointer-events:none}
+main{max-width:1260px;margin:auto;padding:36px clamp(14px,4vw,48px) 64px}h1{font-size:clamp(2rem,5vw,4rem);line-height:1;margin:8px 0 14px;letter-spacing:-.045em}h2,h3{line-height:1.2;margin:0 0 12px}p{line-height:1.6;margin:.6em 0;color:var(--muted)}.label{font:600 .78rem ui-monospace,monospace;letter-spacing:.13em;text-transform:uppercase;color:var(--teal)}
+.inputs,.panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:clamp(14px,2.2vw,24px)}.inputs{margin:24px 0 16px}.fields{display:flex;gap:12px;align-items:end;flex-wrap:wrap}label{display:grid;gap:5px;font-size:.9rem;font-weight:600}input,select,button{font:inherit}input[type=number],select,button{padding:8px 10px;border:1px solid #9bbfbd;border-radius:7px;background:white;color:var(--ink)}input[type=number]{width:8.5rem}button{cursor:pointer}button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:white}input[type=range]{width:100%;accent-color:var(--teal)}.error{color:#9e2b1b}.steps{display:flex;flex-wrap:wrap;gap:7px;margin:15px 0}.steps button{font-size:.83rem}.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:15px;align-items:start}.chart{display:block;width:min(100%,440px);margin:auto;aspect-ratio:1}.chart circle,.chart line,.chart path{vector-effect:non-scaling-stroke}.chart text{font:600 12px ui-monospace,monospace;paint-order:stroke;stroke:white;stroke-width:3px;stroke-linejoin:round}
+.results{margin-top:15px}.options{display:grid;grid-template-columns:1fr 1fr;gap:12px}.solution{border:1px solid var(--line);padding:14px;border-radius:10px}.solution.active{border:2px solid var(--teal);padding:13px}.solution dl{display:grid;grid-template-columns:1fr auto;gap:8px;font-size:.9rem}.solution dd{margin:0;font-variant-numeric:tabular-nums}.equation{padding:12px;border-left:3px solid var(--coral);background:#f0f8f7;overflow-wrap:anywhere}.resources{margin-top:18px}details{margin:10px 0}summary{cursor:pointer;font-weight:600}.legend{font-size:.85rem}#lesson,#resources{scroll-margin-top:1rem}[hidden]{display:none!important}
+@media(max-width:730px){.grid,.options{grid-template-columns:1fr}header{align-items:flex-start}.tour-note{font-size:.8rem}}
+main{max-width:1530px}.lesson-copy{margin-bottom:15px}.lesson-copy h2{margin-top:5px}.lesson-copy details{margin-bottom:0}
+#workspace{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:stretch}
+.chart-guide{margin-top:15px}.guide-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.guide-grid p{margin:0}.guide-grid strong{color:var(--ink)}
+.simulation{overflow:hidden;padding:0;display:flex;flex-direction:column}.simulation-heading{padding:18px 18px 8px}.simulation-heading p{margin:0;font-size:.88rem}.simulation iframe{height:clamp(320px,38vw,490px)}.simulation .tour-wrap{flex:1}.transport{display:grid;gap:10px;padding:14px 18px;border-top:1px solid var(--line)}.transport button{min-height:40px}.transport-row{display:flex;justify-content:space-between;align-items:center;gap:10px}.transport output{font:500 .85rem ui-monospace,monospace}
+.readings{background:#102f32;color:#f4fffe;border-color:#102f32}.readings .label,.readings p{color:#b9ddda}.readings h2{margin-top:7px}.readings dl{margin:14px 0 0}.readings dl div{padding:10px 0;border-top:1px solid #41696a}.readings dt{font-size:.82rem;color:#b9ddda}.readings dd{margin:4px 0 0;font:600 clamp(.95rem,1.38vw,1.2rem) ui-monospace,monospace;overflow-wrap:anywhere}.readings .status{border-radius:6px;background:#214c4e;padding:9px;margin-bottom:0;font-size:.83rem}
+@media(max-width:1060px){#workspace{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}.simulation{grid-column:1/-1}.simulation iframe{height:clamp(340px,52vw,520px)}}
+@media(max-width:730px){.guide-grid{grid-template-columns:1fr}}
+@media(max-width:620px){#workspace{grid-template-columns:minmax(0,1fr)}.simulation{grid-column:auto}.simulation iframe{height:360px}.readings dd{font-size:1.1rem}}
+</style>
+<link rel="stylesheet" href="tutor.css">
+</head>
+<body>
+<header><strong>Medusa JF-4 / Smith Chart Lab</strong><nav aria-label="Page sections"><a href="#workspace">3D lab</a><a href="#tutor">Ask Medusa</a><a href="#resources">Resources &amp; videos</a></nav></header>
+<main id="lesson">
+  <div class="label">Guided lesson · single shunt-stub matching</div>
+  <h1>Match a load with a Smith chart</h1>
+  <p>Explore a 50 Ω line with VSWR 3 and a voltage minimum 0.10λ from the load. Follow Medusa to find where to place the matching stub and how long it should be.</p>
+  <div id="workspace">
+    <section class="panel simulation" aria-label="Animated Medusa Smith chart explanation">
+      <div class="simulation-heading room-heading"><div><h2>Medusa’s 3D lab</h2><p>Drag to look around. Play the explanation to follow the marker.</p></div><a href="#tutor">Talk to Medusa ↓</a></div>
+      <div class="tour-wrap">
+        <iframe id="tour" title="Medusa and the animated Smith chart in the same 3D room" src="medusa.html?lesson=1"></iframe>
+        <p class="tour-state" id="tourState">Loading the 3D tour…</p>
+      </div>
+      <div class="transport">
+        <div class="transport-row"><button id="tourToggle" type="button">Play explanation</button><label class="voice-toggle"><input id="roam" type="checkbox" checked> Let Medusa roam</label><output id="tourClock" for="tourTime">2.6 / 25 s</output></div>
+        <label>Explanation timeline<input id="tourTime" type="range" min="0" max="25" value="2.6" step=".05"></label>
+        <div class="chart-controls">
+          <label>Chart grid<select id="view"><option value="y">Admittance (g, b)</option><option value="z">Impedance (r, x)</option></select></label>
+          <label>Probe position from the load (λ)<input id="probe" type="range" min="0" max=".5" value="0" step=".0001"></label>
+        </div>
+        <div class="line-map" aria-label="Transmission line from source to load">
+          <span>Generator</span><div class="line-track"><i id="lineJunction" title="Stub junction"></i><i id="lineProbe" title="Probe"></i></div><span>Load</span>
+        </div>
+        <p class="equation" id="probeReadout"></p>
+        <details id="flatChart"><summary>View flat Smith chart</summary>
+          <svg id="smith" class="chart" viewBox="0 0 400 400" role="img" aria-label="Smith chart showing the load, voltage minimum and both shunt-stub locations"></svg>
+          <p class="legend">Coral = load · teal = stub locations · dark = probe · green = matched center</p>
+        </details>
+      </div>
+      <div class="room-lesson">
+  <div class="steps" id="steps" role="group" aria-label="Lesson steps"></div>
+    <section class="panel lesson-copy">
+      <div class="label" id="stepLabel"></div>
+      <h2 id="stepTitle"></h2><p id="explanation"></p>
+      <p id="observe"></p>
+      <details><summary>Formula and definitions</summary>
+        <p class="equation" id="equation"></p>
+        <p><strong>Transmission line.</strong> A path that carries waves between a source and a load. Z₀ is the ratio of voltage to current for a wave traveling in one direction.</p>
+        <p><strong>Reflection coefficient Γ.</strong> The reflected voltage divided by the incident voltage at a particular point. Its magnitude measures the size of the reflection.</p>
+        <p><strong>VSWR.</strong> The largest standing-wave voltage divided by the smallest. A value of 1 means the envelope is flat.</p>
+        <p><strong>Admittance.</strong> The inverse of impedance. Its real and imaginary parts are conductance g and susceptance b after normalization.</p>
+        <p><strong>Shunt stub.</strong> A branch of transmission line connected in parallel. A lossless shorted or open stub adds only susceptance, so the connection must be made where g already equals 1.</p>
+      </details>
+    </section>
+      </div>
+    </section>
+  </div>
+  <section class="panel tutor" id="tutor" aria-labelledby="tutorTitle">
+    <div class="tutor-heading">
+      <div><h2 id="tutorTitle">Ask Medusa</h2><p>I’m Medusa JF-4, your voice and chat tutor. Ask me about the chart or the matching problem.</p></div>
+      <p class="model-badge" id="tutorModel">Ollama · connecting</p>
+    </div>
+    <p id="tutorStatus" role="status"></p>
+    <div id="tutorLog" class="tutor-log" role="log" aria-label="Conversation with Medusa"></div>
+    <form id="tutorForm">
+      <label for="tutorInput">Ask about the current chart</label>
+      <div class="tutor-input">
+        <input id="tutorInput" type="text" maxlength="1000" placeholder="Why does the point move clockwise?" required>
+        <button id="tutorMic" type="button" aria-pressed="false">Ask by voice</button>
+        <button id="tutorSend" type="submit">Send</button>
+      </div>
+    </form>
+    <div class="tutor-tools">
+      <button type="button" data-question="What is happening on the Smith chart right now?">Explain this step</button>
+      <button type="button" data-question="How do I choose where to place the shunt stub?">Where does the stub go?</button>
+      <label class="voice-toggle"><input type="checkbox" id="tutorSpeak"> Read every reply aloud</label>
+    </div>
+    <audio id="replyAudio" controls hidden aria-label="Medusa’s spoken reply"></audio>
+    <p id="voiceNote" class="voice-note" role="status"></p>
+  </section>
+  <details class="panel problem-settings"><summary>Change the example measurements</summary>
+  <form class="inputs" id="inputs">
+    <div class="fields">
+      <label>Line impedance Z₀ (Ω)<input id="z0" type="number" min="0.01" max="1000000" step="any" value="50" required></label>
+      <label>VSWR<input id="vswr" type="number" min="1" max="1000" step="any" value="3" required></label>
+      <label>First minimum (λ)<input id="minimum" type="number" min="0" max="0.499999" step="any" value="0.10" required></label>
+      <label>Stub termination<select id="termination"><option value="short">Short circuit</option><option value="open">Open circuit</option></select></label>
+      <button type="reset">Reset example</button>
+    </div>
+    <p>Distances are measured toward the generator. The stub is lossless and has the same characteristic impedance as the main line.</p>
+    <p id="error" class="error" role="status" hidden></p>
+  </form>
+  </details>
+  <section class="panel chart-guide">
+    <div class="label">Smith chart in plain language</div>
+    <h2>How to read the movement</h2>
+    <div class="guide-grid">
+      <p><strong>1. The circle.</strong> The load starts on a constant-VSWR circle. Moving toward the generator rotates around that circle; the amount of reflection stays the same.</p>
+      <p><strong>2. The centre.</strong> The centre is a perfect match: no reflected wave, normalized impedance <strong>z = 1 + j0</strong>.</p>
+      <p><strong>3. The crossing.</strong> A shunt stub works where the conductance is already <strong>g = 1</strong>. The stub then cancels the remaining susceptance and moves the point to the centre.</p>
+    </div>
+  </section>
+  <section class="panel results" id="results">
+    <h2>Compare the two matching networks</h2>
+    <div class="options" id="options"></div>
+  </section>
+  <section class="panel resources" id="resources">
+    <h2>Resources &amp; videos</h2>
+    <div id="resourceLibrary"></div>
+  </section>
+</main>
+<script src="smithMatchLabData.js"></script>
+<script src="resources.js"></script>
+<script src="lab.js"></script>
+<script src="tutor.js"></script>
+</body>
+</html>
